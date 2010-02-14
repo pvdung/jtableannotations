@@ -178,6 +178,25 @@ public final class Configurator {
             public boolean isCellEditable(int rowIndex, int columnIndex) {
                 return editable[columnIndex];
             }
+
+            @Override
+            public void setValueAt(Object aValue, int row, int column) {
+                try {
+                    Object obj = list.get(row);
+                    final Field[] fields = typeClass.getDeclaredFields();
+                    for (Field field : fields) {
+                        if (field.getAnnotation(JTableColumnConfiguration.class) != null) {
+                            JTableColumnConfiguration columnAnnotation = field.getAnnotation(JTableColumnConfiguration.class);
+                            if (columnAnnotation.order() == column) {
+                                field.set(obj, aValue);
+                            }
+                        }
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+                super.setValueAt(aValue, row, column);
+            }
         };
         tab.setColumnModel(tcm);
         tab.setModel(tbm);
