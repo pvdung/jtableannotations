@@ -1,7 +1,9 @@
 package com.google.code.jtableannotation;
 
 import java.lang.reflect.Field;
+import java.text.DateFormat;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
@@ -99,9 +101,14 @@ public final class Configurator {
             for (Field field : fields) {
                 JTableColumnConfiguration columnAnnotation = field.getAnnotation(JTableColumnConfiguration.class);
                 if (columnAnnotation != null) {
-                    final Object value = field.get(object);
+                    Object value = field.get(object);
                     if ("JTableColumnConfiguration_DF".equals(columnAnnotation.decimalFormat())) {
-                        jtable.setValueAt(value, row, columnAnnotation.order());
+                        if ("JTableColumnConfiguration_DF".equals(columnAnnotation.dateFormat())) {
+                            jtable.setValueAt(value, row, columnAnnotation.order());
+                        } else {
+                            DateFormat df = new SimpleDateFormat(columnAnnotation.dateFormat());
+                            jtable.setValueAt(df.format(value), row, columnAnnotation.order());
+                        }
                     } else {
                         DecimalFormat df = new DecimalFormat(columnAnnotation.decimalFormat());
                         jtable.setValueAt(df.format(value), row, columnAnnotation.order());
@@ -168,31 +175,6 @@ public final class Configurator {
         TableModel tbm = new DefaultTableModel(columnNames, rowCount) {
 
             @Override
-            public void setValueAt(Object aValue, int row, int column) {
-                try {
-                    Object obj = list.get(row);
-                    Field[] fields = typeClass.getFields();
-                    for (Field field : fields) {
-                        if (field.getAnnotation(JTableColumnConfiguration.class) != null) {
-                            JTableColumnConfiguration columnAnnotation = field.getAnnotation(JTableColumnConfiguration.class);
-                            if (columnAnnotation.order() == column) {
-                                try {
-                                    field.set(obj, aValue);
-                                } catch (IllegalArgumentException ex) {
-                                    Logger.getLogger(Configurator.class.getName()).log(Level.SEVERE, null, ex);
-                                } catch (IllegalAccessException ex) {
-                                    Logger.getLogger(Configurator.class.getName()).log(Level.SEVERE, null, ex);
-                                }
-                            }
-                        }
-                    }
-                } catch (SecurityException securityException) {
-                    securityException.printStackTrace();
-                }
-                super.setValueAt(aValue, row, column);
-            }
-
-            @Override
             public boolean isCellEditable(int rowIndex, int columnIndex) {
                 return editable[columnIndex];
             }
@@ -201,7 +183,9 @@ public final class Configurator {
         tab.setModel(tbm);
         tab.setSelectionMode(selectionMode);
         tab.setAutoCreateRowSorter(autoSorter);
-        tab.setRowHeight(rowHeight);
+        if (rowHeight != -1) {
+            tab.setRowHeight(rowHeight);
+        }
     }
 
     private void setupTableColumn(final TableColumn column, final int width,
