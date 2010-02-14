@@ -12,10 +12,11 @@ import javax.swing.table.TableCellRenderer;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface JTableColumnConfiguration {
-    String name() default "JTableColumnConfiguration_NM";
     int order();
+    String name() default "JTableColumnConfiguration_NM";
     Align align() default Align.LEFT;
     String decimalFormat() default "JTableColumnConfiguration_DF";
+    String dateFormat() default "JTableColumnConfiguration_DF";
     boolean editable() default false;
     boolean resizable() default false;
     int width() default 100;
