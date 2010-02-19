@@ -11,4 +11,5 @@ public @interface JTableConfiguration {
     int rowHeight() default -1;
     SelectionMode selectionMode() default SelectionMode.SINGLE_SELECTION;
     boolean autoSorter() default true;
+    boolean bindable() default false;
 }

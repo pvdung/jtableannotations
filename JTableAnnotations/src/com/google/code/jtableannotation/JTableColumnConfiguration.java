@@ -18,7 +18,7 @@ public @interface JTableColumnConfiguration {
     String decimalFormat() default "JTableColumnConfiguration_DF";
     String dateFormat() default "JTableColumnConfiguration_DF";
     boolean editable() default false;
-    boolean resizable() default false;
+    boolean resizable() default true;
     int width() default 100;
     Class<? extends TableCellRenderer> cellRender() default DefaultTableCellRenderer.class;
     Class<? extends TableCellEditor> cellEditor() default DefaultCellEditor.class;
