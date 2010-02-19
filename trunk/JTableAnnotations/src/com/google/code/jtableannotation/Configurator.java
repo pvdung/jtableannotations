@@ -57,7 +57,8 @@ public final class Configurator {
                 try {
                     ((DefaultTableCellRenderer) tcr).setHorizontalAlignment(columnAnnotation.align().getAlign());
                 } catch (Exception ex) {
-                    ex.printStackTrace();
+                    System.err.println("It wasn't possible to apply horizontal alignment on this field : "+field.getName()+" ex:"+ex);
+                    System.err.println("To solve this problem make sure that your cellrender is a subclass of DefaultTableCellRenderer!");
                 }
 
                 canonicalName = columnAnnotation.cellEditor().getCanonicalName();
@@ -99,6 +100,7 @@ public final class Configurator {
         while (it.hasNext()) {
             Object object = it.next();
             for (Field field : fields) {
+                field.setAccessible(true);
                 JTableColumnConfiguration columnAnnotation = field.getAnnotation(JTableColumnConfiguration.class);
                 if (columnAnnotation != null) {
                     Object value = field.get(object);
@@ -172,38 +174,67 @@ public final class Configurator {
 
     private void finalSetup(final String[] columnNames, final int rowCount, final JTable tab, final TableColumnModel tcm, final int rowHeight, final boolean autoSorter, final int selectionMode, final Class<?> typeClass, final List<?> list) {
         final boolean[] editable = getEditableCells(typeClass, tcm.getColumnCount());
-        TableModel tbm = new DefaultTableModel(columnNames, rowCount) {
-
-            @Override
-            public boolean isCellEditable(int rowIndex, int columnIndex) {
-                return editable[columnIndex];
-            }
-
-            @Override
-            public void setValueAt(Object aValue, int row, int column) {
-                try {
-                    Object obj = list.get(row);
-                    final Field[] fields = typeClass.getDeclaredFields();
-                    for (Field field : fields) {
-                        if (field.getAnnotation(JTableColumnConfiguration.class) != null) {
-                            JTableColumnConfiguration columnAnnotation = field.getAnnotation(JTableColumnConfiguration.class);
-                            if (columnAnnotation.order() == column) {
-                                field.set(obj, aValue);
-                            }
-                        }
-                    }
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-                super.setValueAt(aValue, row, column);
-            }
-        };
+        final boolean bindable = typeClass.getAnnotation(JTableConfiguration.class).bindable();
+        TableModel tbm = createTableModel(columnNames, rowCount, editable, typeClass, list, bindable);
         tab.setColumnModel(tcm);
         tab.setModel(tbm);
         tab.setSelectionMode(selectionMode);
         tab.setAutoCreateRowSorter(autoSorter);
         if (rowHeight != -1) {
             tab.setRowHeight(rowHeight);
+        }
+    }
+
+    private TableModel createTableModel(final String[] columnNames, final int rowCount, final boolean[] editable, final Class<?> typeClass, final List<?> list, final boolean bindable) {
+        if (bindable) {
+            return new DefaultTableModel(columnNames, rowCount) {
+
+                @Override
+                public boolean isCellEditable(int rowIndex, int columnIndex) {
+                    return editable[columnIndex];
+                }
+
+                @Override
+                public void setValueAt(Object aValue, int row, int column) {
+                    Field exception = null;
+                    try {
+                        Object obj = list.get(row);
+                        final Field[] fields = typeClass.getDeclaredFields();
+                        for (Field field : fields) {
+                            field.setAccessible(true);
+                            exception = field;
+                            if (field.getAnnotation(JTableColumnConfiguration.class) != null) {
+                                JTableColumnConfiguration columnAnnotation = field.getAnnotation(JTableColumnConfiguration.class);
+                                if (columnAnnotation.order() == column) {
+                                    if ("JTableColumnConfiguration_DF".equals(columnAnnotation.decimalFormat())) {
+                                        if ("JTableColumnConfiguration_DF".equals(columnAnnotation.dateFormat())) {
+                                            field.set(obj, aValue);
+                                        } else {
+                                            DateFormat df = new SimpleDateFormat(columnAnnotation.dateFormat());
+                                            field.set(obj, df.parse(aValue.toString()));
+                                        }
+                                    } else {
+                                        DecimalFormat df = new DecimalFormat(columnAnnotation.decimalFormat());
+                                        field.set(obj, df.parse(aValue.toString()));
+                                    }
+
+                                }
+                            }
+                        }
+                    } catch (Exception ex) {
+                        System.err.println("The field " + exception.getName() + " could not asign the value = " + aValue + " ex=" + ex);
+                    }
+                    super.setValueAt(aValue, row, column);
+                }
+            };
+        } else {
+            return new DefaultTableModel(columnNames, rowCount) {
+
+                @Override
+                public boolean isCellEditable(int rowIndex, int columnIndex) {
+                    return editable[columnIndex];
+                }
+            };
         }
     }
 
@@ -230,7 +261,7 @@ public final class Configurator {
 
     private void setupTableColumn(final TableColumn column, final int width, final boolean resizable) {
         if (width != -1) {
-            column.setMaxWidth(width);
+            column.setWidth(width);
         }
         column.setResizable(resizable);
     }
